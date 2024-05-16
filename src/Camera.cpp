@@ -1,7 +1,7 @@
 #include "pch.h"
 #include "Camera.h"
 
-Camera::Camera(double aspectRat, int imgWidth, int samplesPerPx)
+Camera::Camera(double aspectRat, int imgWidth, int samplesPerPx, int maxDepth)
 {
     perPixelSamples = samplesPerPx;
     pixelSampleScale = 1.0f / perPixelSamples;
@@ -34,19 +34,23 @@ Camera::Camera(double aspectRat, int imgWidth, int samplesPerPx)
     data.reserve(dataSize);
 }
 
-glm::vec3 Camera::rayColor(const Ray& ray, const Hittable& world) const
+glm::vec3 Camera::rayColor(const Ray& ray, int depth, const Hittable& world) const
 {
+    if (depth <= 0)
+        return glm::vec3(0, 0, 0);
+
 	hitData data;
     glm::vec3 color = glm::vec3(0.0f, 0.0f, 0.0f);
-	if (world.hit(ray, Interval(0, Utils::infinity), data)) {
-        color = 0.5f * (data.normal + glm::vec3(1.0f, 1.0f, 1.0f));
+	if (world.hit(ray, Interval(0.001, Utils::infinity), data)) {
+        glm::vec3 direction = data.normal + Utils::randomVectorOnHemisphere(data.normal);
+        color = 0.5f * rayColor(Ray(data.p, direction), depth - 1, world);
         return glm::vec4(color, 1.0f);
 	}
 
 	glm::vec3 unitDir = glm::normalize(ray.direction());
     float a = 0.5f * (unitDir.y + 1.0f);
 	//Gradient betweend white and (0.5f, 0.7f, 1.0f) color
-    color = (1.0f - a) * glm::vec3(1.0f, 1.0f, 1.0f) + a * glm::vec3(0.5f, 0.7f, 1.0f);
+    color = (1.0f - a) * glm::vec3(1.0f, 1.0f, 0.0f) + a * glm::vec3(0.5f, 0.7f, 1.0f);
     return glm::vec4(color, 1.0f);
 }
 
@@ -60,7 +64,7 @@ void Camera::render(const Hittable& world)
             pixelColor = glm::vec3(0.0f, 0.0f, 0.0f);
             for (int sampleIdx = 0; sampleIdx < perPixelSamples; sampleIdx++) {
                 Ray r = getRay(i, j);
-                pixelColor += rayColor(r, world);
+                pixelColor += rayColor(r, maxRecursionDepth, world);
             }
 
             data.emplace_back(convertColor((float)pixelSampleScale * pixelColor));
@@ -84,11 +88,22 @@ glm::vec3 Camera::sampleSquare() const {
     return glm::vec3(Utils::generateRandomNumber(0.0, 1.0) - 0.5, Utils::generateRandomNumber(0.0, 1.0) - 0.5, 0);
 }
 
+inline double linearToGamma(double linearComponent)
+{
+    if (linearComponent > 0)
+        return sqrt(linearComponent);
+
+    return 0;
+}
+
 dataPixels Camera::convertColor(const glm::vec3& color) {
     static const Interval intensity(0.000, 0.999);
-    int r = int(256.0f * intensity.clamp(color.r));
-    int g = int(256.0f * intensity.clamp(color.g));
-    int b = int(256.0f * intensity.clamp(color.b));
+
+    glm::vec3 newColor = glm::vec3(linearToGamma(color.r), linearToGamma(color.g), linearToGamma(color.b));
+
+    int r = int(256.0f * intensity.clamp(newColor.r));
+    int g = int(256.0f * intensity.clamp(newColor.g));
+    int b = int(256.0f * intensity.clamp(newColor.b));
 
     dataPixels ret = { r, g, b, 255 };
     return ret;

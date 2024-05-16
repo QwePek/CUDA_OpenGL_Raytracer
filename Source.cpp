@@ -47,7 +47,7 @@ int main()
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     //Essential window calculations
-    Camera cam(16.0f / 9.0f, 800, 10);
+    Camera cam(16.0f / 9.0f, 800, 10, 50);
     glm::u32vec2 imgSize = cam.getImageSize();
     GLFWwindow* window = glfwCreateWindow(imgSize.x, imgSize.y, "Raytracing", NULL, NULL);
     if (window == NULL)

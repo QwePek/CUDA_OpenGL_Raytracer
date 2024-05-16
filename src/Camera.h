@@ -11,14 +11,14 @@ struct dataPixels {
 class Camera
 {
 public:
-	Camera(double aspectRat, int imgWidth, int samplesPerPx = 10);
+	Camera(double aspectRat, int imgWidth, int samplesPerPx = 10, int maxDepth = 10);
 	void render(const Hittable& world);
 
 	inline glm::u32vec2 getImageSize() const { return imageSize; };
 	const std::vector<dataPixels>& getPixelData() { return data; };
 
 private:
-	glm::vec3 rayColor(const Ray& ray, const Hittable& world) const;
+	glm::vec3 rayColor(const Ray& ray, int depth, const Hittable& world) const;
 	Ray getRay(int i, int j) const;
 
 	//Camera helper functions
@@ -28,6 +28,8 @@ private:
 	double pixelSampleScale;
 	double aspectRatio = 1.0f;
 	int perPixelSamples = 10;
+	int maxRecursionDepth = 10;
+	
 	glm::u32vec2 imageSize = glm::u32vec2(100, 1);
 	glm::vec3 center;
 	glm::vec3 pixel00_loc;
