@@ -1,5 +1,6 @@
 #pragma once
 #include "../Utils/Utils.h"
+#include "../Utils/Interval.h"
 
 class Ray;
 class hitData {
