@@ -14,6 +14,8 @@
 #include "src/Raytracing/HittableList.h"
 #include "src/Raytracing/Objects/Sphere.h"
 #include "src/Camera.h"
+#include "src/Raytracing/Materials/Lambertian.h"
+#include "src/Raytracing/Materials/Metal.h"
 
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
@@ -47,7 +49,7 @@ int main()
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     //Essential window calculations
-    Camera cam(16.0f / 9.0f, 800, 10, 50);
+    Camera cam(16.0f / 9.0f, 1920, 20, 10);
     glm::u32vec2 imgSize = cam.getImageSize();
     GLFWwindow* window = glfwCreateWindow(imgSize.x, imgSize.y, "Raytracing", NULL, NULL);
     if (window == NULL)
@@ -83,8 +85,16 @@ int main()
     //RAYTRACING CODE
     //World objects
     HittableList worldObjects;
-    worldObjects.add(std::make_shared<Sphere>(glm::vec3(0.0f, 0.0f, -1.0f), 0.5f));
-    worldObjects.add(std::make_shared<Sphere>(glm::vec3(0.0f, -100.5f, -1.0f), 100));
+
+    std::shared_ptr<Material> groundMat = std::make_shared<Materials::Lambertian>(glm::vec3(0.8f, 0.8f, 0.0f));
+    std::shared_ptr<Material> centerMat = std::make_shared<Materials::Lambertian>(glm::vec3(0.1f, 0.2f, 0.5f));
+    std::shared_ptr<Material> leftMat   = std::make_shared<Materials::Metal>(glm::vec3(0.8f, 0.8f, 0.8f), 0.3);
+    std::shared_ptr<Material> rightMat  = std::make_shared<Materials::Metal>(glm::vec3(0.8f, 0.6f, 0.2f), 0.0);
+
+    worldObjects.add(std::make_shared<Sphere>(glm::vec3(0.0f, -100.5f, -1.0f), 100.0f, groundMat));
+    worldObjects.add(std::make_shared<Sphere>(glm::vec3(0.0f,    0.0f, -1.2f), 0.5f  , centerMat));
+    worldObjects.add(std::make_shared<Sphere>(glm::vec3(-1.0f,   0.0f, -1.0f), 0.5f  , leftMat));
+    worldObjects.add(std::make_shared<Sphere>(glm::vec3(1.0f,    0.0f, -1.0f), 0.5f  , rightMat));
 
     //Texture generation
     cam.render(worldObjects);

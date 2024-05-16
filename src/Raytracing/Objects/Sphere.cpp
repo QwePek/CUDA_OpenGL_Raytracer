@@ -3,7 +3,7 @@
 
 bool Sphere::hit(const Ray& r, Interval rayT, hitData& data) const {
 	//oc = C - Q
-	glm::vec3 oc = center - r.origin();
+	glm::dvec3 oc = center - r.origin();
 	//elementy rownania kwadratowego
 	double a = glm::dot(r.direction(), r.direction()); //To to samo co dlugosc^2
 	double h = glm::dot(r.direction(), oc); //d = dir
@@ -15,7 +15,7 @@ bool Sphere::hit(const Ray& r, Interval rayT, hitData& data) const {
 
 	double deltaSqr = sqrt(delta);
 	//Nearest solution that lies within range
-	float root = (h - deltaSqr) / a;
+	double root = (h - deltaSqr) / a;
 	if (!rayT.surrounds(root)) {
 		root = (h + deltaSqr) / a;
 		if (!rayT.surrounds(root))
@@ -24,7 +24,8 @@ bool Sphere::hit(const Ray& r, Interval rayT, hitData& data) const {
 
 	data.t = root;
 	data.p = r.at(root);
-	glm::vec3 outwardNormal = (data.p - center) / (float)radius;
+	data.mat = mat;
+	glm::dvec3 outwardNormal = (data.p - center) / radius;
 	data.setFaceNormal(r, outwardNormal);
 
 	return true;

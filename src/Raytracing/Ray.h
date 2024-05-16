@@ -4,15 +4,15 @@
 class Ray
 {
 public:
-	Ray(const glm::vec3& origin, const glm::vec3& direction) : orig(origin), dir(direction) {}
+	Ray(const glm::dvec3& origin, const glm::dvec3& direction) : orig(origin), dir(direction) {}
 
-	const glm::vec3& origin() const { return orig; }
-	const glm::vec3& direction() const { return dir; }
+	const glm::dvec3& origin() const { return orig; }
+	const glm::dvec3& direction() const { return dir; }
 
-	glm::vec3 at(float t) const {
+	glm::dvec3 at(double t) const {
 		return orig + t * dir;
 	}
 private:
-	glm::vec3 orig;
-	glm::vec3 dir;
+	glm::dvec3 orig;
+	glm::dvec3 dir;
 };

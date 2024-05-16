@@ -20,10 +20,6 @@ namespace Utils {
 	static inline double degToRad(double deg) {
 		return deg * pi / 180.0;
 	}
-    
-    static inline double lenSquared(glm::vec3 vec) {
-        return vec.x * vec.x + vec.y * vec.y + vec.z * vec.z;
-    }
 
     static float generateRandomNumber(float a, float b) {
         // Tworzenie generatora liczb pseudolosowych
@@ -39,31 +35,53 @@ namespace Utils {
         return distrib(gen);
     }
 
-    static glm::vec3 randomVector() {
-        return glm::vec3(generateRandomNumber(0.0, 1.0), generateRandomNumber(0.0, 1.0), generateRandomNumber(0.0, 1.0));
-    }
-
-    static glm::vec3 randomVector(float a, float b) {
-        return glm::vec3(generateRandomNumber(a, b), generateRandomNumber(a, b), generateRandomNumber(a, b));
-    }
-
-    static inline glm::vec3 randomInUnitSphere() {
-        while (true) {
-            glm::vec3 randVec = randomVector(-1.0f, 1.0f);
-            if (lenSquared(randVec) < 1)
-                return randVec;
+    namespace Vector {
+        static inline double lenSquared(glm::dvec3 vec) {
+            return vec.x * vec.x + vec.y * vec.y + vec.z * vec.z;
         }
-    }
 
-    static inline glm::vec3 randomInUnitSphereVector() {
-        return glm::normalize(randomInUnitSphere());
-    }
+        static glm::dvec3 randomVector() {
+            return glm::dvec3(generateRandomNumber(0.0, 1.0), generateRandomNumber(0.0, 1.0), generateRandomNumber(0.0, 1.0));
+        }
 
-    static inline glm::vec3 randomVectorOnHemisphere(const glm::vec3& normal) {
-        glm::vec3 onUnitSphere = randomInUnitSphereVector();
-        if (glm::dot(onUnitSphere, normal) > 0.0)
-            return onUnitSphere;
-        else
-            return -onUnitSphere;
+        static glm::dvec3 randomVector(float a, float b) {
+            return glm::dvec3(generateRandomNumber(a, b), generateRandomNumber(a, b), generateRandomNumber(a, b));
+        }
+
+        static inline glm::dvec3 randomInUnitSphere() {
+            while (true) {
+                glm::dvec3 randVec = randomVector(-1.0f, 1.0f);
+                if (lenSquared(randVec) < 1)
+                    return randVec;
+            }
+        }
+
+        static inline glm::dvec3 randomInUnitSphereVector() {
+            return glm::normalize(randomInUnitSphere());
+        }
+
+        static inline glm::dvec3 randomVectorOnHemisphere(const glm::dvec3& normal) {
+            glm::dvec3 onUnitSphere = randomInUnitSphereVector();
+            if (glm::dot(onUnitSphere, normal) > 0.0)
+                return onUnitSphere;
+            else
+                return -onUnitSphere;
+        }
+
+        static inline bool nearZero(const glm::dvec3& vector) {
+            double s = 1e-8;
+            return (std::fabs(vector.x) < s) && (std::fabs(vector.y) < s) && (std::fabs(vector.z) < s);
+        }
+
+        static inline glm::dvec3 reflect(const glm::dvec3& v, const glm::dvec3& n) {
+            return v - 2 * glm::dot(v, n) * n;
+        }
+
+        static inline glm::dvec3 refract(const glm::dvec3& uv, const glm::dvec3& n, double etaiOverEtat) {
+            double cosAlpha = std::fmin(glm::dot(-uv, n), 1.0);
+            glm::dvec3 outPerpendicular = etaiOverEtat * (uv * cosAlpha * n);
+            glm::dvec3 outParallel = -sqrt(std::fabs(1.0 - lenSquared(outPerpendicular))) * n;
+            return outPerpendicular + outParallel;
+        }
     }
 }

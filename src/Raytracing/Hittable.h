@@ -3,15 +3,17 @@
 #include "../Utils/Interval.h"
 
 class Ray;
+class Material;
 class hitData {
 public:
-	glm::vec3 p;
-	glm::vec3 normal;
+	glm::dvec3 p;
+	glm::dvec3 normal;
+	std::shared_ptr<Material> mat;
 	double t;
 	bool frontFace;
 
 	//outwardNormal - unit length
-	void setFaceNormal(const Ray& ray, const glm::vec3& outwardNormal);
+	void setFaceNormal(const Ray& ray, const glm::dvec3& outwardNormal);
 };
 
 class Hittable {

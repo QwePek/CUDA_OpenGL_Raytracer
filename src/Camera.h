@@ -18,12 +18,12 @@ public:
 	const std::vector<dataPixels>& getPixelData() { return data; };
 
 private:
-	glm::vec3 rayColor(const Ray& ray, int depth, const Hittable& world) const;
+	glm::dvec3 rayColor(const Ray& ray, int depth, const Hittable& world) const;
 	Ray getRay(int i, int j) const;
 
 	//Camera helper functions
-	glm::vec3 sampleSquare() const;
-	dataPixels convertColor(const glm::vec3& color);
+	glm::dvec3 sampleSquare() const;
+	dataPixels convertColor(const glm::dvec3& color);
 
 	double pixelSampleScale;
 	double aspectRatio = 1.0f;
@@ -31,10 +31,10 @@ private:
 	int maxRecursionDepth = 10;
 	
 	glm::u32vec2 imageSize = glm::u32vec2(100, 1);
-	glm::vec3 center;
-	glm::vec3 pixel00_loc;
-	glm::vec3 pixelDelta_u;
-	glm::vec3 pixelDelta_v;
+	glm::dvec3 center;
+	glm::dvec3 pixel00_loc;
+	glm::dvec3 pixelDelta_u;
+	glm::dvec3 pixelDelta_v;
 
 	std::vector<dataPixels> data;
 };
