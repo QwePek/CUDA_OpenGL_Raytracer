@@ -169,7 +169,7 @@
     <ClInclude Include="src\Camera.h" />
     <ClInclude Include="PrecompileHeaders\pch.h" />
     <ClInclude Include="src\Raytracing\HittableList.h" />
-    <ClInclude Include="src\Raytracing\Materials\Diaelectric.h" />
+    <ClInclude Include="src\Raytracing\Materials\Dielectric.h" />
     <ClInclude Include="src\Raytracing\Materials\Lambertian.h" />
     <ClInclude Include="src\Raytracing\Materials\Material.h" />
     <ClInclude Include="src\Raytracing\Materials\Metal.h" />

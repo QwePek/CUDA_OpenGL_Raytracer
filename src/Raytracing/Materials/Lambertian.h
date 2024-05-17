@@ -8,7 +8,7 @@ namespace Materials
 	public:
 		Lambertian(const glm::dvec3& albedo) : albedo(albedo) { }
 
-		bool scatter(const Ray& rayIn, const hitData data, glm::dvec3& attenuation, Ray& rayScattered) const {
+		bool scatter(const Ray& rayIn, const hitData& data, glm::dvec3& attenuation, Ray& rayScattered) const {
 			glm::dvec3 scatterDirection = data.normal + Utils::Vector::randomInUnitSphereVector();
 
 			//Obsluga tego jak random vector bedzie odwrotnoscia normali, wtedy moga sie pojawic rozne bledy :(

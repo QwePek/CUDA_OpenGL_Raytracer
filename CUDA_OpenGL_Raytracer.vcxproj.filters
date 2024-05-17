@@ -1016,7 +1016,7 @@
     <ClInclude Include="src\Raytracing\Materials\Metal.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\Raytracing\Materials\Diaelectric.h">
+    <ClInclude Include="src\Raytracing\Materials\Dielectric.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

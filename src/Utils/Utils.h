@@ -29,6 +29,12 @@ namespace Utils {
         return distrib(gen);
     }
 
+    static double generateRandomNumber() {
+        std::uniform_real_distribution<double> distrib(0.0, 1.0);
+
+        return distrib(gen);
+    }
+    
     static double generateRandomNumber(double a, double b) {
         std::uniform_real_distribution<double> distrib(a, b);
 
@@ -36,6 +42,10 @@ namespace Utils {
     }
 
     namespace Vector {
+        static inline double lenSquared(glm::dvec2 vec) {
+            return vec.x * vec.x + vec.y * vec.y;
+        }
+        
         static inline double lenSquared(glm::dvec3 vec) {
             return vec.x * vec.x + vec.y * vec.y + vec.z * vec.z;
         }
@@ -79,9 +89,18 @@ namespace Utils {
 
         static inline glm::dvec3 refract(const glm::dvec3& uv, const glm::dvec3& n, double etaiOverEtat) {
             double cosAlpha = std::fmin(glm::dot(-uv, n), 1.0);
-            glm::dvec3 outPerpendicular = etaiOverEtat * (uv * cosAlpha * n);
+            glm::dvec3 outPerpendicular = etaiOverEtat * (uv + cosAlpha * n);
             glm::dvec3 outParallel = -sqrt(std::fabs(1.0 - lenSquared(outPerpendicular))) * n;
             return outPerpendicular + outParallel;
+        }
+
+        //To samo co randomInUnitSphere ale 2d
+        static inline glm::dvec2 randomInUnitDisk() {
+            while (true) {
+                glm::dvec2 p(generateRandomNumber(-1.0, 1.0), generateRandomNumber(-1.0, 1.0));
+                if (lenSquared(p) < 1)
+                    return p;
+            }
         }
     }
 }

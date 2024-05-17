@@ -11,7 +11,8 @@ struct dataPixels {
 class Camera
 {
 public:
-	Camera(double aspectRat, int imgWidth, int samplesPerPx = 10, int maxDepth = 10);
+	Camera(glm::dvec3 _lookFrom, glm::dvec3 _lookAt, glm::dvec3 _vUp, double vFOV, double _focusDist, double _defocusAngle
+		, double aspectRat, int imgWidth, int samplesPerPx = 10, int maxDepth = 10);
 	void render(const Hittable& world);
 
 	inline glm::u32vec2 getImageSize() const { return imageSize; };
@@ -23,9 +24,24 @@ private:
 
 	//Camera helper functions
 	glm::dvec3 sampleSquare() const;
+	glm::dvec3 sampleDefocusDisk() const;
 	dataPixels convertColor(const glm::dvec3& color);
 
 	double pixelSampleScale;
+
+	//Camera angles
+	double verticalFov  = 90;
+	glm::dvec3 lookFrom = glm::dvec3(0.0, 0.0,  0.0);
+	glm::dvec3 lookAt   = glm::dvec3(0.0, 0.0, -1.0);
+	glm::dvec3 vUp		= glm::dvec3(0.0, 1.0,  0.0);
+	glm::dvec3 u, v, w; //Camera basis vectors
+
+	//Defocus (blur :))
+	double defocusAngle = 0;
+	double focusDistance = 10;
+	glm::dvec3 defocusDisk_u; //defocus disk horizonal radius;
+	glm::dvec3 defocusDisk_v; //defocus disk vertical radius
+
 	double aspectRatio = 1.0f;
 	int perPixelSamples = 10;
 	int maxRecursionDepth = 10;
