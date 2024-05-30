@@ -1,15 +1,16 @@
 #pragma once
-#include "Hittable.h"
+#include "../Utils/Utils.h"
+#include "../Utils/Interval.h"
 
 class Ray
 {
 public:
-	Ray(const glm::dvec3& origin, const glm::dvec3& direction) : orig(origin), dir(direction) {}
+	__device__ Ray(const glm::dvec3& origin, const glm::dvec3& direction) : orig(origin), dir(direction) {}
 
-	const glm::dvec3& origin() const { return orig; }
-	const glm::dvec3& direction() const { return dir; }
+	__device__ const glm::dvec3& origin() const { return orig; }
+	__device__ const glm::dvec3& direction() const { return dir; }
 
-	glm::dvec3 at(double t) const {
+	__device__ glm::dvec3 at(double t) const {
 		return orig + t * dir;
 	}
 private:

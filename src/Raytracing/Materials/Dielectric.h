@@ -1,32 +1,15 @@
 #pragma once
 #include "Material.h"
+#include "../../Camera.h"
 
 namespace Materials
 {
 	class Dielectric : public Material
 	{
 	public:
-		Dielectric(double refractionIndex) : refractionIndex(refractionIndex) { }
+		__device__ Dielectric(double refractionIndex) : refractionIndex(refractionIndex) { }
 
-		bool scatter(const Ray& rayIn, const hitData& data, glm::dvec3& attenuation, Ray& rayScattered) const {
-
-			//attenuation = glm::dvec3(1.0, 1.0, 1.0);
-			//double ri = rec.frontFace ? (1.0 / refractionIndex) : refractionIndex;
-
-			//glm::dvec3 unit_direction = glm::normalize(r_in.direction());
-			//double cos_theta = std::fmin(glm::dot(-unit_direction, rec.normal), 1.0);
-			//double sin_theta = sqrt(1.0 - cos_theta * cos_theta);
-
-			//bool cannot_refract = ri * sin_theta > 1.0;
-			//glm::dvec3 direction;
-
-			//if (cannot_refract)
-			//	direction = Utils::Vector::reflect(unit_direction, rec.normal);
-			//else
-			//	direction = Utils::Vector::refract(unit_direction, rec.normal, ri);
-
-			//scattered = Ray(rec.p, direction);
-			//return true;
+		__device__ bool scatter(const Ray& rayIn, const hitData& data, glm::dvec3& attenuation, Ray& rayScattered, curandState* localRandState) const {
 			attenuation = glm::dvec3(1.0, 1.0, 1.0);
 			double ri = data.frontFace ? (1.0 / refractionIndex) : refractionIndex;
 
@@ -37,7 +20,7 @@ namespace Materials
 			bool cannotrefract = ri * sinalpha > 1.0;
 			glm::dvec3 direction;
 
-			if (cannotrefract || reflectance(cosalpha, ri) > Utils::generateRandomNumber())
+			if (cannotrefract || reflectance(cosalpha, ri) > Utils::generateRandomNumber(localRandState))
 				direction = Utils::Vector::reflect(unitdirection, data.normal);
 			else
 				direction = Utils::Vector::refract(unitdirection, data.normal, ri);
@@ -49,7 +32,7 @@ namespace Materials
 	private:
 		double refractionIndex;
 
-		static double reflectance(double cos, double refractionIndex) {
+		__device__ static double reflectance(double cos, double refractionIndex) {
 			double r0 = (1 - refractionIndex) / (1 + refractionIndex);
 			r0 *= r0;
 			return r0 + (1 - r0) * pow((1 - cos), 5);

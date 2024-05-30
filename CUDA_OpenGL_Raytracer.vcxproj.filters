@@ -15,9 +15,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Source.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="PrecompileHeaders\pch.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -66,19 +63,10 @@
     <ClCompile Include="src\Rendering\IndexBuffer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\Raytracing\Ray.cpp">
+    <ClCompile Include="src\Utils\Interval.cu">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\Raytracing\Objects\Sphere.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Raytracing\Hittable.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Utils\Interval.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Camera.cpp">
+    <ClCompile Include="src\Camera.cu">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -1430,5 +1418,8 @@
       <Filter>Header Files</Filter>
     </None>
     <None Include="src\Rendering\Shaders\shader.shader" />
+  </ItemGroup>
+  <ItemGroup>
+    <CudaCompile Include="Source.cu" />
   </ItemGroup>
 </Project>

@@ -38,8 +38,7 @@ void check_cuda(cudaError_t result, char const* const func, const char* const fi
     }
 }
 
-__device__ void render(dataPixels* data, glm::u32vec2 imgSize, Camera* cam,
-    const Hittable& world, curandState *rand_state)
+__global__ void render(dataPixels** data, glm::u32vec2 imgSize, Camera** cam, HittableList** world, curandState* rand_state)
 {
     int i = threadIdx.x + blockIdx.x * blockDim.x;
     int j = threadIdx.y + blockIdx.y * blockDim.y;
@@ -49,12 +48,12 @@ __device__ void render(dataPixels* data, glm::u32vec2 imgSize, Camera* cam,
     int pixelIndex = i + j * imgSize.x;
     curandState localRandState = rand_state[pixelIndex];
     glm::dvec3 pixelColor(0.0f, 0.0f, 0.0f);
-    for (int sampleIdx = 0; sampleIdx < cam->getPerPixelSamples(); sampleIdx++) {
-        Ray r = cam->getRay(i, j);
-        pixelColor += cam->rayColor(r, cam->getMaxRecursionDepth(), world);
+    for (int sampleIdx = 0; sampleIdx < (*cam)->getPerPixelSamples(); sampleIdx++) {
+        Ray r = (*cam)->getRay(i, j, rand_state);
+        pixelColor += (*cam)->rayColor(r, (*cam)->getMaxRecursionDepth(), **world, rand_state);
     }
     rand_state[pixelIndex] = localRandState;
-    data[pixelIndex] = cam->convertColor(cam->getPixelSampleScale() * pixelColor);
+    *data[pixelIndex] = (*cam)->convertColor((*cam)->getPixelSampleScale() * pixelColor);
 }
 
 __global__ void rand_init(curandState* rand_state) {
@@ -63,9 +62,62 @@ __global__ void rand_init(curandState* rand_state) {
     }
 }
 
-
 #define RND (curand_uniform(&local_rand_state))
 
+__global__ void initCamera(Camera** camera)
+{
+    *camera = new Camera(glm::dvec3(13, 2, 3), glm::dvec3(0, 0, 0), glm::dvec3(0, 1, 0), 20, 10.0, 0.6, 16.0f / 9.0f, 400, 20, 10);
+}
+
+__global__ void initWorld(HittableList** worldObjects, curandState* rand_state)
+{
+    if (threadIdx.x != 0 || blockIdx.x != 0)
+        return;
+
+    int hittableCount = 1;
+    for (int a = -11; a < 11; a++) {
+        for (int b = -11; b < 11; b++) {
+            hittableCount++;
+        }
+    }
+    int id = 0;
+    (*worldObjects)->objectsSize = hittableCount;
+    (*worldObjects)->objects = new Hittable*[hittableCount];
+    (*worldObjects)->objects[id++] = new Sphere(glm::dvec3(0, -1000, 0), 1000, new Materials::Lambertian(glm::dvec3(0.5, 0.5, 0.5)));
+
+    for (int a = -11; a < 11; a++) {
+        for (int b = -11; b < 11; b++) {
+            double choose_mat = Utils::generateRandomNumber(rand_state);
+            glm::dvec3 center(a + 0.9 * Utils::generateRandomNumber(rand_state), 0.2, b + 0.9 * Utils::generateRandomNumber(rand_state));
+
+            if ((center - glm::dvec3(4, 0.2, 0)).length() > 0.9) {
+                Material* sphere_material;
+
+                if (choose_mat < 0.8) {
+                    glm::dvec3 albedo = Utils::Vector::randomVector(0.0, 1.0, rand_state) * Utils::Vector::randomVector(0.0, 1.0, rand_state);
+                    sphere_material = new Materials::Lambertian(albedo);
+                }
+                else if (choose_mat < 0.95) {
+                    glm::dvec3 albedo = Utils::Vector::randomVector(0.5, 1.0, rand_state);
+                    double fuzz = Utils::generateRandomNumber(0, 0.5, rand_state);
+                    sphere_material = new Materials::Metal(albedo, fuzz);
+                }
+                else
+                    sphere_material = new Materials::Dielectric(1.5);
+
+                (*worldObjects)->objects[id++] = new Sphere(center, 0.2, sphere_material);
+            }
+        }
+    }
+    (*worldObjects)->objects[id++] = new Sphere(glm::dvec3(0, 1, 0), 1.0, new Materials::Dielectric(1.5));
+    (*worldObjects)->objects[id++] = new Sphere(glm::dvec3(-4, 1, 0), 1.0, new Materials::Lambertian(glm::dvec3(0.4, 0.2, 0.1)));
+    (*worldObjects)->objects[id++] = new Sphere(glm::dvec3(4, 1, 0), 1.0, new Materials::Metal(glm::dvec3(0.7, 0.6, 0.5), 0.0));
+}
+
+__global__ void freeWorld(HittableList** worldObjects, Camera** camera) {
+    delete *worldObjects;
+    delete *camera;
+}
 
 void processInput(GLFWwindow* window)
 {
@@ -96,10 +148,21 @@ int main()
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     //Essential window calculations
-    Camera cam(glm::dvec3(13, 2, 3), glm::dvec3(0, 0, 0), glm::dvec3(0, 1, 0), 20, 10.0, 0.6
-        , 16.0f / 9.0f, 400, 20, 10);
+    curandState* curRandState1; //For world creation
+    checkCudaErrors(cudaMalloc((void**)&curRandState1, 1 * sizeof(curandState)));
+    rand_init<<<1, 1>>>(curRandState1);
+    checkCudaErrors(cudaGetLastError());
+    checkCudaErrors(cudaDeviceSynchronize());
 
-    glm::u32vec2 imgSize = cam.getImageSize();
+    Camera** cam;
+    checkCudaErrors(cudaMalloc((void**)&cam, sizeof(Camera*)));
+    initCamera<<<1, 1 >>>(cam);
+    checkCudaErrors(cudaGetLastError());
+    checkCudaErrors(cudaDeviceSynchronize());
+
+    //Data variables
+    glm::u32vec2 imgSize = glm::dvec2(700, 800);//(*cam)->getImageSize();
+
     GLFWwindow* window = glfwCreateWindow(imgSize.x, imgSize.y, "Raytracing", NULL, NULL);
     if (window == NULL)
     {
@@ -132,84 +195,34 @@ int main()
     Shader sh("src/Rendering/Shaders/shader.shader");
 
     //RAYTRACING CODE
-    //World objects
-    HittableList worldObjects;
-
-    std::shared_ptr<Material> ground_material = std::make_shared<Materials::Lambertian>(glm::dvec3(0.5, 0.5, 0.5));
-    worldObjects.add(std::make_shared<Sphere>(glm::dvec3(0, -1000, 0), 1000, ground_material));
-
+    HittableList** world;
+    //To tutaj bo nie chce mi sie liczyc ile to bd :)
+    int hittableCount = 1;
     for (int a = -11; a < 11; a++) {
         for (int b = -11; b < 11; b++) {
-            double choose_mat = Utils::generateRandomNumber();
-            glm::dvec3 center(a + 0.9 * Utils::generateRandomNumber(), 0.2, b + 0.9 * Utils::generateRandomNumber());
-
-            if ((center - glm::dvec3(4, 0.2, 0)).length() > 0.9) {
-                std::shared_ptr<Material> sphere_material;
-                
-                if (choose_mat < 0.8) {
-                    glm::dvec3 albedo = Utils::Vector::randomVector(0.0, 1.0) * Utils::Vector::randomVector(0.0, 1.0);
-                    sphere_material = std::make_shared<Materials::Lambertian>(albedo);
-                }
-                else if (choose_mat < 0.95) {
-                    glm::dvec3 albedo = Utils::Vector::randomVector(0.5, 1.0);
-                    double fuzz = Utils::generateRandomNumber(0, 0.5);
-                    sphere_material = std::make_shared<Materials::Metal>(albedo, fuzz);
-                }
-                else
-                    sphere_material = std::make_shared<Materials::Dielectric>(1.5);
-                
-                worldObjects.add(std::make_shared<Sphere>(center, 0.2, sphere_material));
-            }
+            hittableCount++;
         }
     }
+    checkCudaErrors(cudaMalloc((void**)&world, sizeof(HittableList*)));
 
-    std::shared_ptr<Material> material1 = std::make_shared<Materials::Dielectric>(1.5);
-    std::shared_ptr<Material> material2 = std::make_shared<Materials::Lambertian>(glm::dvec3(0.4, 0.2, 0.1));
-    std::shared_ptr<Material> material3 = std::make_shared<Materials::Metal>(glm::dvec3(0.7, 0.6, 0.5), 0.0);
-    worldObjects.add(std::make_shared<Sphere>(glm::dvec3(0, 1, 0), 1.0, material1));
-    worldObjects.add(std::make_shared<Sphere>(glm::dvec3(-4, 1, 0), 1.0, material2));
-    worldObjects.add(std::make_shared<Sphere>(glm::dvec3(4, 1, 0), 1.0, material3));
-
-
-    //std::shared_ptr<Material> groundMat  = std::make_shared<Materials::Lambertian>(glm::dvec3(0.3, 0.8, 0.0));
-    //std::shared_ptr<Material> centerMat  = std::make_shared<Materials::Lambertian>(glm::dvec3(0.5, 0.2, 0.1));
-    //std::shared_ptr<Material> leftMat    = std::make_shared<Materials::Diaelectric>(1.50);
-    //std::shared_ptr<Material> leftBubble = std::make_shared<Materials::Diaelectric>(1.00 / 1.50);
-    //std::shared_ptr<Material> rightMat   = std::make_shared<Materials::Metal>(glm::dvec3(0.8, 0.6, 0.2), 1.0);
-
-    //worldObjects.add(std::make_shared<Sphere>(glm::dvec3(0.0, -100.5, -1.0), 100.0, groundMat));
-    //worldObjects.add(std::make_shared<Sphere>(glm::dvec3(0.0,    0.0, -1.2), 0.5  , centerMat));
-    //worldObjects.add(std::make_shared<Sphere>(glm::dvec3(-1.0,   0.0, -1.0), 0.5  , leftMat));
-    //worldObjects.add(std::make_shared<Sphere>(glm::dvec3(-1.0,   0.0, -1.0), 0.4  , leftBubble));
-    //worldObjects.add(std::make_shared<Sphere>(glm::dvec3(1.0,    0.0, -1.0), 0.5  , rightMat));
-
-    //Texture generation
-
-    //Data variables
-
-    dataPixels* pixels;
+    //Allocate randState
     uint32_t numOfChannels = 4; //RGBA
     uint32_t pixelsSize = imgSize.x * imgSize.y * numOfChannels;
-    checkCudaErrors(cudaMallocManaged((void**)&pixels, pixelsSize * sizeof(dataPixels)));
-    
-    //Allocate randState
+
     curandState* curRandState; //For pixels
     checkCudaErrors(cudaMalloc((void**)&curRandState, pixelsSize * sizeof(curandState)));
-    curandState* curRandState1; //For world creation
-    checkCudaErrors(cudaMalloc((void**)&curRandState1, 1 * sizeof(curandState)));
-    
-    //rand_init<<<1, 1>>>(curRandState1);
+    initWorld<<<1, 1>>>(world, curRandState1);
     checkCudaErrors(cudaGetLastError());
-    checkCudaErrors(cudaDeviceSynchronize());
-    
-    render(pixels, imgSize, &cam, worldObjects, curRandState);
+    //checkCudaErrors(cudaDeviceSynchronize());
 
-
-
+    dataPixels** pixels;
+    checkCudaErrors(cudaMallocManaged((void**)&pixels, pixelsSize * sizeof(dataPixels*)));
+    render<<<1, 1>>>(pixels, imgSize, cam, world, curRandState);
 
     //std::vector<dataPixels> pixels = cam.getPixelData();
 
 
+    //Texture generation
     Texture tx((unsigned char*)pixels, imgSize.x, imgSize.y);
 
     //DRAWING utils and preparations
@@ -231,7 +244,7 @@ int main()
     layout.Push<float>(2);
 
     va.addBuffer(vb, layout);
-   
+
     ib.unbind();
     va.unbind();
     vb.unbind();

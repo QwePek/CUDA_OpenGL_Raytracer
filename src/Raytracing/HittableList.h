@@ -1,27 +1,23 @@
 #pragma once
-#include "Ray.h"
+#include "Hittable.h"
 #include <vector>
 
 class HittableList : public Hittable {
 public:
-	std::vector<std::shared_ptr<Hittable>> objects;
+	Hittable** objects = nullptr;
+	int objectsSize = 1;
 
-	HittableList() {}
-	HittableList(std::shared_ptr<Hittable> obj) { add(obj); }
+	__device__ HittableList() {}
+	__device__ HittableList(Hittable** o, int size) { objects = o; objectsSize = size; }
+	__host__ ~HittableList() { delete []objects; }
 
-	void clear() { objects.clear(); }
-
-	void add(std::shared_ptr<Hittable> obj) {
-		objects.push_back(obj);
-	}
-	
-	bool hit(const Ray& r, Interval rayT, hitData& data) const {
+	__device__ bool hit(const Ray& r, Interval rayT, hitData& data) const {
 		hitData tmp_data;
 		bool hitAnything = false;
 		double closestHit = rayT._max;
 
-		for (const auto& obj : objects) {
-			if (obj->hit(r, Interval(rayT._min, closestHit), tmp_data)) {
+		for (int i = 0; i < objectsSize; i++) {
+			if (objects[i]->hit(r, Interval(rayT._min, closestHit), tmp_data)) {
 				hitAnything = true;
 				closestHit = tmp_data.t;
 				data = tmp_data;
