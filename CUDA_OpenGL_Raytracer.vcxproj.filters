@@ -66,9 +66,6 @@
     <ClCompile Include="src\Utils\Interval.cu">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\Camera.cu">
-      <Filter>Source Files</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="PrecompileHeaders\pch.h">

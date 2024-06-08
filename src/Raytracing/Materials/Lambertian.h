@@ -7,10 +7,10 @@ namespace Materials
 	class Lambertian : public Material
 	{
 	public:
-		__device__ Lambertian(const glm::dvec3& albedo) : albedo(albedo) { }
+		__device__ Lambertian(const glm::vec3& albedo) : albedo(albedo) { }
 
-		__device__ bool scatter(const Ray& rayIn, const hitData& data, glm::dvec3& attenuation, Ray& rayScattered, curandState* localRandState) const {
-			glm::dvec3 scatterDirection = data.normal + Utils::Vector::randomInUnitSphereVector(localRandState);
+		__device__ bool scatter(const Ray& rayIn, const hitData& data, glm::vec3& attenuation, Ray& rayScattered, curandState* localRandState) const {
+			glm::vec3 scatterDirection = data.normal + Utils::Vector::randomInUnitSphereVector(localRandState);
 
 			//Obsluga tego jak random vector bedzie odwrotnoscia normali, wtedy moga sie pojawic rozne bledy :(
 			if (Utils::Vector::nearZero(scatterDirection))
@@ -23,6 +23,6 @@ namespace Materials
 		}
 
 	private:
-		glm::dvec3 albedo;
+		glm::vec3 albedo;
 	};
 }

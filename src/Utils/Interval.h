@@ -5,21 +5,21 @@
 class Interval {
 public:
 	__device__ Interval() : _min(+Utils::infinity), _max(-Utils::infinity) { }
-	__device__ Interval(double min, double max) : _min(min), _max(max) {}
+	__device__ Interval(float min, float max) : _min(min), _max(max) {}
 
-	__device__ double size() const {
+	__device__ float size() const {
 		return _max - _min;
 	}
 
-	__device__ bool contains(double x) const {
+	__device__ bool contains(float x) const {
 		return _min <= x && _max >= x;
 	}
 
-	__device__ bool surrounds(double x) const {
+	__device__ bool surrounds(float x) const {
 		return _min < x && x < _max;
 	}
 
-	__device__ double clamp(double x) const {
+	__device__ float clamp(float x) const {
 		if (x < _min)
 			return _min;
 		if (x > _max)
@@ -28,5 +28,5 @@ public:
 	}
 
 	static const Interval empty, universe;
-	double _min, _max;
+	float _min, _max;
 };

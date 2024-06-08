@@ -11,6 +11,8 @@ public:
 	void bind(uint32_t slot = 0) const;
 	void unbind() const;
 
+	void updateData(unsigned char* textureBuffer);
+
 	inline int getWidth() const { return width; }
 	inline int getHeight() const { return height; }
 

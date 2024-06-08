@@ -48,6 +48,12 @@ Texture::Texture(unsigned char* _textureBuffer, int32_t _width, int32_t _height)
 	unbind();
 }
 
+void Texture::updateData(unsigned char* textureBuffer)
+{
+	glBindTexture(GL_TEXTURE_2D, texID);
+	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, textureBuffer);
+}
+
 Texture::~Texture()
 {
 	GLCall(glDeleteTextures(1, &texID));

@@ -32,28 +32,43 @@ void check_cuda(cudaError_t result, char const* const func, const char* const fi
     if (result) {
         std::cerr << "CUDA error = " << static_cast<unsigned int>(result) << " at " <<
             file << ":" << line << " '" << func << "' \n";
+        cudaError_t err = cudaGetLastError();
+        if (err != cudaSuccess) {
+            printf("CUDA Error: %s\n", cudaGetErrorString(err));
+        }
         // Make sure we call CUDA Device Reset before exiting
         cudaDeviceReset();
         exit(99);
     }
 }
 
-__global__ void render(dataPixels** data, glm::u32vec2 imgSize, Camera** cam, HittableList** world, curandState* rand_state)
+__global__ void render_init(glm::u32vec2 imgSize, curandState* rand_state) {
+    int i = threadIdx.x + blockIdx.x * blockDim.x;
+    int j = threadIdx.y + blockIdx.y * blockDim.y;
+
+    if ((i >= imgSize.x) || (j >= imgSize.y))
+        return;
+    int pixel_index = j * imgSize.x + i;
+    curand_init(1984 + pixel_index, 0, 0, &rand_state[pixel_index]);
+}
+
+__global__ void render(dataPixels* data, glm::u32vec2 imgSize, Camera** cam, Hittable** world, curandState* rand_state)
 {
     int i = threadIdx.x + blockIdx.x * blockDim.x;
     int j = threadIdx.y + blockIdx.y * blockDim.y;
 
     if ((i >= imgSize.x) || (j >= imgSize.y))
         return;
+    
     int pixelIndex = i + j * imgSize.x;
     curandState localRandState = rand_state[pixelIndex];
-    glm::dvec3 pixelColor(0.0f, 0.0f, 0.0f);
-    for (int sampleIdx = 0; sampleIdx < (*cam)->getPerPixelSamples(); sampleIdx++) {
-        Ray r = (*cam)->getRay(i, j, rand_state);
-        pixelColor += (*cam)->rayColor(r, (*cam)->getMaxRecursionDepth(), **world, rand_state);
+    glm::vec3 pixelColor(0.0f, 0.0f, 0.0f);
+    for (int sampleIdx = 0; sampleIdx < (*cam)->getPerPixelSamples(); sampleIdx++){
+        Ray r = (*cam)->getRay(i, j, &localRandState);
+        pixelColor += (*cam)->rayColor(r, (*cam)->getMaxRecursionDepth(), world, &localRandState);
     }
     rand_state[pixelIndex] = localRandState;
-    *data[pixelIndex] = (*cam)->convertColor((*cam)->getPixelSampleScale() * pixelColor);
+    data[pixelIndex] = (*cam)->convertColor((*cam)->getPixelSampleScale() * pixelColor);
 }
 
 __global__ void rand_init(curandState* rand_state) {
@@ -64,57 +79,52 @@ __global__ void rand_init(curandState* rand_state) {
 
 #define RND (curand_uniform(&local_rand_state))
 
-__global__ void initCamera(Camera** camera)
+__global__ void initCamera(Camera** camera, glm::u32vec2 imgSize)
 {
-    *camera = new Camera(glm::dvec3(13, 2, 3), glm::dvec3(0, 0, 0), glm::dvec3(0, 1, 0), 20, 10.0, 0.6, 16.0f / 9.0f, 400, 20, 10);
+    *camera = new Camera(glm::vec3(13, 2, 3), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0), 20, 10.0, 0.6, 16.0f / 9.0f, imgSize.x, 100, 50);
 }
 
-__global__ void initWorld(HittableList** worldObjects, curandState* rand_state)
+__global__ void initWorld(Hittable** worldObjects, Hittable** listObjects, curandState* rand_state)
 {
     if (threadIdx.x != 0 || blockIdx.x != 0)
         return;
 
-    int hittableCount = 1;
-    for (int a = -11; a < 11; a++) {
-        for (int b = -11; b < 11; b++) {
-            hittableCount++;
-        }
-    }
     int id = 0;
-    (*worldObjects)->objectsSize = hittableCount;
-    (*worldObjects)->objects = new Hittable*[hittableCount];
-    (*worldObjects)->objects[id++] = new Sphere(glm::dvec3(0, -1000, 0), 1000, new Materials::Lambertian(glm::dvec3(0.5, 0.5, 0.5)));
+    curandState local_rand_state = *rand_state;
+    listObjects[id++] = new Sphere(glm::vec3(0, -1000.0f, -1), 1000.0f, new Materials::Lambertian(glm::vec3(0.5f, 0.5f, 0.5f)));
 
     for (int a = -11; a < 11; a++) {
         for (int b = -11; b < 11; b++) {
-            double choose_mat = Utils::generateRandomNumber(rand_state);
-            glm::dvec3 center(a + 0.9 * Utils::generateRandomNumber(rand_state), 0.2, b + 0.9 * Utils::generateRandomNumber(rand_state));
+            double choose_mat = Utils::generateRandomNumber(&local_rand_state);
+            glm::vec3 center(a + 0.9 * Utils::generateRandomNumber(&local_rand_state), 0.2, b + 0.9 * Utils::generateRandomNumber(&local_rand_state));
 
-            if ((center - glm::dvec3(4, 0.2, 0)).length() > 0.9) {
+            if ((center - glm::vec3(4, 0.2, 0)).length() > 0.9) {
                 Material* sphere_material;
 
                 if (choose_mat < 0.8) {
-                    glm::dvec3 albedo = Utils::Vector::randomVector(0.0, 1.0, rand_state) * Utils::Vector::randomVector(0.0, 1.0, rand_state);
+                    glm::vec3 albedo = Utils::Vector::randomVector(0.0, 1.0, &local_rand_state) * Utils::Vector::randomVector(0.0, 1.0, &local_rand_state);
                     sphere_material = new Materials::Lambertian(albedo);
                 }
                 else if (choose_mat < 0.95) {
-                    glm::dvec3 albedo = Utils::Vector::randomVector(0.5, 1.0, rand_state);
-                    double fuzz = Utils::generateRandomNumber(0, 0.5, rand_state);
+                    glm::vec3 albedo = Utils::Vector::randomVector(0.5, 1.0, &local_rand_state);
+                    double fuzz = Utils::generateRandomNumber(0, 0.5, &local_rand_state);
                     sphere_material = new Materials::Metal(albedo, fuzz);
                 }
                 else
                     sphere_material = new Materials::Dielectric(1.5);
 
-                (*worldObjects)->objects[id++] = new Sphere(center, 0.2, sphere_material);
+                listObjects[id++] = new Sphere(center, 0.2, sphere_material);
             }
         }
     }
-    (*worldObjects)->objects[id++] = new Sphere(glm::dvec3(0, 1, 0), 1.0, new Materials::Dielectric(1.5));
-    (*worldObjects)->objects[id++] = new Sphere(glm::dvec3(-4, 1, 0), 1.0, new Materials::Lambertian(glm::dvec3(0.4, 0.2, 0.1)));
-    (*worldObjects)->objects[id++] = new Sphere(glm::dvec3(4, 1, 0), 1.0, new Materials::Metal(glm::dvec3(0.7, 0.6, 0.5), 0.0));
+    listObjects[id++] = new Sphere(glm::vec3(0, 1, 0), 1.0, new Materials::Dielectric(1.5f));
+    listObjects[id++] = new Sphere(glm::vec3(-4, 1, 0), 1.0, new Materials::Lambertian(glm::vec3(0.4f, 0.2f, 0.1f)));
+    listObjects[id++] = new Sphere(glm::vec3(4, 1, 0), 1.0, new Materials::Metal(glm::vec3(0.7f, 0.6f, 0.5f), 0.0f));
+    *rand_state = local_rand_state;
+    *worldObjects = new HittableList(listObjects, 22 * 22 + 1 + 3);
 }
 
-__global__ void freeWorld(HittableList** worldObjects, Camera** camera) {
+__global__ void freeWorld(Hittable** worldObjects, Camera** camera) {
     delete *worldObjects;
     delete *camera;
 }
@@ -154,14 +164,14 @@ int main()
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
 
+    glm::u32vec2 imgTmp(1920, 1920);
     Camera** cam;
     checkCudaErrors(cudaMalloc((void**)&cam, sizeof(Camera*)));
-    initCamera<<<1, 1 >>>(cam);
+    initCamera<<<1, 1 >>>(cam, imgTmp);
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
 
-    //Data variables
-    glm::u32vec2 imgSize = glm::dvec2(700, 800);//(*cam)->getImageSize();
+    glm::u32vec2 imgSize = glm::u32vec2(imgTmp.x, imgTmp.x / (16.0f / 9.0f)); //imGuiCam.getImageSize();
 
     GLFWwindow* window = glfwCreateWindow(imgSize.x, imgSize.y, "Raytracing", NULL, NULL);
     if (window == NULL)
@@ -195,15 +205,16 @@ int main()
     Shader sh("src/Rendering/Shaders/shader.shader");
 
     //RAYTRACING CODE
-    HittableList** world;
     //To tutaj bo nie chce mi sie liczyc ile to bd :)
     int hittableCount = 1;
-    for (int a = -11; a < 11; a++) {
-        for (int b = -11; b < 11; b++) {
+    for (int a = -11; a < 11; a++)
+        for (int b = -11; b < 11; b++)
             hittableCount++;
-        }
-    }
-    checkCudaErrors(cudaMalloc((void**)&world, sizeof(HittableList*)));
+
+    Hittable** hittableList;
+    checkCudaErrors(cudaMalloc((void**)&hittableList, hittableCount * sizeof(Hittable*)));
+    Hittable** world;
+    checkCudaErrors(cudaMalloc((void**)&world, sizeof(Hittable*)));
 
     //Allocate randState
     uint32_t numOfChannels = 4; //RGBA
@@ -211,16 +222,30 @@ int main()
 
     curandState* curRandState; //For pixels
     checkCudaErrors(cudaMalloc((void**)&curRandState, pixelsSize * sizeof(curandState)));
-    initWorld<<<1, 1>>>(world, curRandState1);
+    initWorld<<<1, 1>>>(world, hittableList, curRandState1);
     checkCudaErrors(cudaGetLastError());
-    //checkCudaErrors(cudaDeviceSynchronize());
+    checkCudaErrors(cudaDeviceSynchronize());
 
-    dataPixels** pixels;
-    checkCudaErrors(cudaMallocManaged((void**)&pixels, pixelsSize * sizeof(dataPixels*)));
-    render<<<1, 1>>>(pixels, imgSize, cam, world, curRandState);
+    dataPixels* pixels;
+    checkCudaErrors(cudaMallocManaged((void**)&pixels, pixelsSize * sizeof(dataPixels)));
 
-    //std::vector<dataPixels> pixels = cam.getPixelData();
+    clock_t start, stop;
+    start = clock();
 
+    // Render our buffer
+    int threadsX = 8, threadsY = 8;
+    dim3 blocks(imgSize.x / threadsX + 1, imgSize.y / threadsY + 1);
+    dim3 threads(threadsX, threadsY);
+    render_init<<<blocks, threads>>>(imgSize, curRandState);
+    checkCudaErrors(cudaGetLastError());
+    checkCudaErrors(cudaDeviceSynchronize());
+    render<<<blocks, threads>>>(pixels, imgSize, cam, world, curRandState);
+    checkCudaErrors(cudaGetLastError());
+    checkCudaErrors(cudaDeviceSynchronize());
+
+    stop = clock();
+    double timer_seconds = ((double)(stop - start)) / CLOCKS_PER_SEC;
+    std::cerr << "took " << timer_seconds << " seconds.\n";
 
     //Texture generation
     Texture tx((unsigned char*)pixels, imgSize.x, imgSize.y);

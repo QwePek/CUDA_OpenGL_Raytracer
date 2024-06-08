@@ -4,23 +4,23 @@
 class Sphere : public Hittable
 {
 public:
-	__device__ Sphere(const glm::dvec3& center, double radius, Material* mat) : 
+	__device__ Sphere(const glm::vec3& center, float radius, Material* mat) :
 		center(center), radius(radius < 0 ? 0 : radius), mat(mat) {}
 	__device__ bool hit(const Ray& r, Interval rayT, hitData& data) const {
 		//oc = C - Q
-		glm::dvec3 oc = center - r.origin();
+		glm::vec3 oc = center - r.origin();
 		//elementy rownania kwadratowego
-		double a = glm::dot(r.direction(), r.direction()); //To to samo co dlugosc^2
-		double h = glm::dot(r.direction(), oc); //d = dir
-		double c = glm::dot(oc, oc) - radius * radius;
+		float a = glm::dot(r.direction(), r.direction()); //To to samo co dlugosc^2
+		float h = glm::dot(r.direction(), oc); //d = dir
+		float c = glm::dot(oc, oc) - radius * radius;
 
-		double delta = h * h - a * c;
+		float delta = h * h - a * c;
 		if (delta < 0)
 			return false;
 
-		double deltaSqr = sqrt(delta);
+		float deltaSqr = sqrt(delta);
 		//Nearest solution that lies within range
-		double root = (h - deltaSqr) / a;
+		float root = (h - deltaSqr) / a;
 		if (!rayT.surrounds(root)) {
 			root = (h + deltaSqr) / a;
 			if (!rayT.surrounds(root))
@@ -37,7 +37,7 @@ public:
 	}
 
 private:
-	glm::dvec3 center;
-	double radius;
+	glm::vec3 center;
+	float radius;
 	Material* mat;
 };
